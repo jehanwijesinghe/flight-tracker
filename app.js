@@ -38,6 +38,7 @@ const flightTable = document.getElementById('flight-table').getElementsByTagName
 const totalFlightsElement = document.getElementById('total-flights');
 const totalAirportsElement = document.getElementById('total-airlines');
 const totalAirlinesElement = document.getElementById('total-airports');
+const totalCountriesElement = document.getElementById('total-countries');
 const totalAircraftTypesElement = document.getElementById('total-aircraft-types');
 const totalDurationElement = document.getElementById('total-duration');
 const totalDistanceElement = document.getElementById('total-distance');
@@ -54,23 +55,31 @@ const aircraftSelect = document.getElementById('aircraft');
 
 
 async function loadDropdownData() {
+
     try {
-        const response = await fetch('airport_data.json');
-        if (!response.ok) throw new Error("Failed to load airport_data.json");
-        const data = await response.json();
+        const snapshot = await db.collection("airports").orderBy("country").get();
 
-        const airports = data.results.map(airport => airport.name).sort();
-        airports.forEach(airport => {
+        var airportData = [];
 
+        snapshot.forEach(doc2 => {
+            const data2 = doc2.data();
+            airportData.push({ ...data2 });
+        });
+
+        const airportList = airportData.map(airport => airport.name);
+        airportList.sort();
+
+        airportList.forEach(airport => {
             const option = document.createElement('option');
             option.value = airport;
             option.textContent = airport;
             departurePortSelect.appendChild(option);
             arrivalPortSelect.appendChild(option.cloneNode(true)); // For arrival port
         });
-    } catch (error) {
-        console.error('Error loading dropdown data:', error);
-    }
+
+    } catch (err) {
+        console.error("Error loading flights:", err);
+    } 
 
     try {
         const response2 = await fetch('airline_data.json');
@@ -181,7 +190,7 @@ async function loadFlights() {
     tableBody.innerHTML = ""; // Clear table
 
     const user = firebase.auth().currentUser;
-  //  console.log(user);
+    //  console.log(user);
 
     try {
         // const snapshot = await db.collection("flights").orderBy("date").get();
@@ -195,7 +204,8 @@ async function loadFlights() {
         let totalDistance = 0;
         let totalAirlines = 0;
         let totalAirports = 0;
-        let totalAircraftTypes =0;
+        let totalCountries = 0;
+        let totalAircraftTypes = 0;
 
         var flightData = [];
 
@@ -237,6 +247,10 @@ async function loadFlights() {
         airlinesList.sort(); // Optional: sort after filtering uniques
         totalAirlines = airlinesList.length;
 
+        const aircraftTypesList = [...new Set(flightData.map(flight => flight.aircraft.trim().toLowerCase()))];
+        aircraftTypesList.sort(); // Optional: sort after filtering uniques
+        totalAircraftTypes = aircraftTypesList.length;
+
         const deptAirportLists = [...new Set(flightData.map(flight => flight.departure.trim().toLowerCase()))];
         deptAirportLists.sort(); // Optional: sort after filtering uniques
         const arrAirportLists = [...new Set(flightData.map(flight => flight.arrival.trim().toLowerCase()))];
@@ -246,14 +260,20 @@ async function loadFlights() {
         const uniqueAllAirports = [...new Set(allAirports)];
         totalAirports = uniqueAllAirports.length;
 
-        const aircraftTypesList = [...new Set(flightData.map(flight => flight.aircraft.trim().toLowerCase()))];
-        aircraftTypesList.sort(); // Optional: sort after filtering uniques
-        totalAircraftTypes = aircraftTypesList.length;
+        // console.log(uniqueAllAirports);
+
+        var countryList= [];
+
+        countryList = await getCountryByAirportName(uniqueAllAirports);
+        totalCountries=countryList.length;
+
+        console.log(countryList);
 
         document.getElementById('total-flights').textContent = totalFlights;
         document.getElementById('total-airlines').textContent = totalAirlines;
         document.getElementById('total-aircraft-types').textContent = totalAircraftTypes;
         document.getElementById('total-airports').textContent = totalAirports;
+        document.getElementById('total-countries').textContent = totalCountries;
         document.getElementById('total-duration').textContent = totalDuration.toFixed(1);
         document.getElementById('total-distance').textContent = totalDistance.toFixed(1);
 
@@ -263,9 +283,30 @@ async function loadFlights() {
         document.getElementById("loader").style.display = "none"; // Hide loader
     }
 
-  //  console.log(flightData);
+    //  console.log(flightData);
     updateCharts(flightData);
 }
+
+
+async function getCountryByAirportName(uniqueAllAirports) {
+    const countries = [];
+  
+    for (const name of uniqueAllAirports) {
+      const snapshot = await db.collection("airports")
+        .where("name", "==", name)
+        .get();
+  
+      if (!snapshot.empty) {
+        const data = snapshot.docs[0].data();
+        countries.push(data.country);
+      } else {
+        console.warn(`No match found for airport: ${name}`);
+      }
+    }
+  
+    return countries;
+  }
+
 
 async function deleteFlight(docId) {
     const user = firebase.auth().currentUser;  // Get the current authenticated user
@@ -513,3 +554,8 @@ document.getElementById("logoutBtn").addEventListener("click", () => {
             console.error("Logout error:", error);
         });
 });
+
+window.addEventListener("load", () => {
+    // Hide loader only after everything is loaded
+    document.getElementById("loader").style.display = "none";
+  });
