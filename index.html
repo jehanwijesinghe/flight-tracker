@@ -1,11 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flight Tracker</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Jehan's Flight Tracker</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
     <div class="container">
@@ -15,8 +19,7 @@
 
         <div class="main-content">
             <div class="form-section">
-                <h2 id="jehan">Add New Flight</h1>
-
+                <h2>Add New Flight</h2>
                 <form id="flight-form">
                     <label for="date">Flight Date:</label>
                     <input type="date" id="date" required>
@@ -58,31 +61,30 @@
             </div>
 
             <div class="dashboard">
-
                 <section class="flight-stats">
                     <div class="tile">
                         <h4>Total Flights</h4>
-                        <span id="total-flights">0</span></p>
+                        <span id="total-flights">0</span>
                     </div>
                     <div class="tile">
                         <h4>Total Duration</h4>
-                        <span id="total-duration">0</span>&nbsp; Hrs
+                        <span id="total-duration">0</span> Hrs
                     </div>
                     <div class="tile">
                         <h4>Total Distance Flown</h4>
-                        <span id="total-distance">0</span>&nbsp; kms
+                        <span id="total-distance">0</span> kms
                     </div>
                 </section>
 
                 <div class="charts">
-                    <h2>Charts</h2><br><br><br><br>
+                    <h2>Charts</h2>
                     <canvas id="airlineChart"></canvas>
                     <canvas id="airportChart"></canvas>
                     <canvas id="aircraftChart"></canvas>
                     <canvas id="yearlyFlightsChart"></canvas>
+
                 </div>
             </div>
-
         </div>
 
         <div class="table-section">
