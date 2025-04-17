@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jehan's Flight Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.6.9/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+</head>
+
+<body>
+    <div id="loader" style="
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;">
+        <div class="spinner"></div>
+    </div>
+
+
+    <div class="container">
+        <header>
+            <div class="user-info">
+                Welcome, <span id="userDisplayName">Guest</span>!
+            </div>
+
+            <h2>Flight Tracker</h2>
+            <button class="remove-btn" id="logoutBtn">Logout</button>
+
+        </header>
+
+        <div class="main-content">
+            <div class="form-section">
+                <h2>Add New Flight</h2>
+                <form id="flight-form">
+                    <label for="date">Flight Date:</label>
+                    <input type="date" id="date" required>
+
+                    <label for="departure">Departure Airport:</label>
+                    <select id="departure" required>
+                        <option value="" disabled selected>Select Departure Airport</option>
+                    </select>
+
+                    <label for="arrival">Arrival Airport:</label>
+                    <select id="arrival" required>
+                        <option value="" disabled selected>Select Arrival Airport</option>
+                    </select>
+
+                    <label for="airline">Airline:</label>
+                    <select id="airline" required>
+                        <option value="" disabled selected>Select Airline</option>
+                    </select>
+
+                    <label for="flightnumber">Flight Number:</label>
+                    <input type="text" id="flightnumber" required>
+
+                    <label for="aircraft">Aircraft Type:</label>
+                    <select id="aircraft" required>
+                        <option value="" disabled selected>Select Aircraft Type</option>
+                    </select>
+
+                    <label for="tailnumber">Tail Number:</label>
+                    <input type="text" id="tailnumber">
+
+                    <label for="distance">Flight Distance (km):</label>
+                    <input type="number" id="distance">
+
+                    <label for="duration">Flight Duration (hours):</label>
+                    <input type="number" id="duration">
+
+                    <button id="saveBtn" type="submit">Add Flight</button>
+                </form>
+            </div>
+
+            <div class="dashboard">
+                <section class="flight-stats">
+                    <div class="tile">
+                        <h4>Total Flights</h4>
+                        <span id="total-flights">0</span>
+                    </div>
+                    <div class="tile">
+                        <h4>Total Airlines</h4>
+                        <span id="total-airlines">0</span>
+                    </div>
+                    <div class="tile">
+                        <h4>Total Airports</h4>
+                        <span id="total-airports">0</span>
+                    </div>
+                    <div class="tile">
+                        <h4>Total Aircraft types</h4>
+                        <span id="total-aircraft-types">0</span>
+                    </div>
+                    <div class="tile">
+                        <h4>Total Flight Duration</h4>
+                        <span id="total-duration">0</span> Hrs
+                    </div>
+                    <div class="tile">
+                        <h4>Total Distance Flown</h4>
+                        <span id="total-distance">0</span> kms
+                    </div>
+                </section>
+
+                <div class="charts">
+                    <h2>Charts</h2>
+                    <canvas id="airlineChart"></canvas>
+                    <canvas id="airportChart"></canvas>
+                    <canvas id="aircraftChart"></canvas>
+                    <canvas id="yearlyFlightsChart"></canvas>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="table-section">
+            <h2>Flight Data</h2>
+            <table id="flight-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Departure</th>
+                        <th>Arrival</th>
+                        <th>Airline</th>
+                        <th>Flight Number</th>
+                        <th>Aircraft</th>
+                        <th>Tail Number</th>
+                        <th>Distance</th>
+                        <th>Duration</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+
+    <script src="app.js"></script>
+</body>
+
+</html>

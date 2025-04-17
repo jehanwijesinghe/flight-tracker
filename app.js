@@ -11,18 +11,34 @@ const firebaseConfig = {
     messagingSenderId: "407134528805",
     appId: "1:407134528805:web:bdd50fbdaf002e745ba6cc",
     measurementId: "G-0Q0R6BCDD7"
-  };
+};
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
+
+firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+        const displayName = user.displayName || user.email.split("@")[0]; // fallback if no name set
+        document.getElementById("userDisplayName").textContent = displayName;
+
+        loadFlights();
+
+    } else {
+        // User not logged in, redirect to login
+        //   window.location.href = "index.html";
+    }
+});
 
 loadDropdownData();
-loadFlights();
 
 const flightForm = document.getElementById('flight-form');
 const flightTable = document.getElementById('flight-table').getElementsByTagName('tbody')[0];
 const totalFlightsElement = document.getElementById('total-flights');
+const totalAirportsElement = document.getElementById('total-airlines');
+const totalAirlinesElement = document.getElementById('total-airports');
+const totalAircraftTypesElement = document.getElementById('total-aircraft-types');
 const totalDurationElement = document.getElementById('total-duration');
 const totalDistanceElement = document.getElementById('total-distance');
 
@@ -91,7 +107,19 @@ async function loadDropdownData() {
 
 
 flightForm.addEventListener('submit', async function (e) {
+
     e.preventDefault();
+
+    const user = firebase.auth().currentUser;  // Get the current authenticated user
+
+    if (!user) {
+        Swal.fire({
+            icon: "error",
+            title: "Oops...",
+            text: "Please sign in to add or update a flight.",
+        });
+        return;
+    }
 
     const updatedFlight = {
         date: document.getElementById('date').value,
@@ -102,14 +130,20 @@ flightForm.addEventListener('submit', async function (e) {
         aircraft: aircraftSelect.value,
         tailnumber: document.getElementById('tailnumber').value,
         distance: parseFloat(document.getElementById('distance').value) || 0,
-        duration: parseFloat(document.getElementById('duration').value) || 0
+        duration: parseFloat(document.getElementById('duration').value) || 0,
+        userId: user.uid  // Add the userId to associate the flight with the current user
     };
 
     if (currentEditId) {
         // Edit mode
         try {
             await db.collection("flights").doc(currentEditId).update(updatedFlight);
-            alert("Flight updated successfully!");
+            Swal.fire({
+                title: 'Success!',
+                text: 'Flight updated successfully!',
+                icon: 'success',
+                confirmButtonText: 'OK'
+            });
         } catch (error) {
             console.error("Error updating flight:", error);
         }
@@ -117,7 +151,15 @@ flightForm.addEventListener('submit', async function (e) {
         // Add mode
         try {
             await db.collection("flights").add(updatedFlight);
-            alert("Flight added to Firebase!");
+            document.querySelector("#flightTable tbody").innerHTML = "";
+
+            loadFlights();
+            Swal.fire({
+                title: 'Success!',
+                text: 'Flight added successfully!',
+                icon: 'success',
+                confirmButtonText: 'OK'
+            });
         } catch (error) {
             console.error("Error adding flight:", error);
         }
@@ -132,21 +174,34 @@ flightForm.addEventListener('submit', async function (e) {
 
 
 async function loadFlights() {
+    document.getElementById("loader").style.display = "flex"; // Show loader
+
+
     const tableBody = document.querySelector("#flight-table tbody");
     tableBody.innerHTML = ""; // Clear table
 
+    const user = firebase.auth().currentUser;
+  //  console.log(user);
+
     try {
-        const snapshot = await db.collection("flights").orderBy("date").get();
+        // const snapshot = await db.collection("flights").orderBy("date").get();
+        const snapshot = await db.collection("flights")
+            .where("userId", "==", user.uid)  // Fetch only flights that belong to the current user
+            .orderBy("date")
+            .get();
 
         let totalFlights = 0;
         let totalDuration = 0;
         let totalDistance = 0;
+        let totalAirlines = 0;
+        let totalAirports = 0;
+        let totalAircraftTypes =0;
 
         var flightData = [];
 
         snapshot.forEach(doc => {
             const data = doc.data();
-            
+
 
             flightData.push({ ...data, id: doc.id });
 
@@ -173,45 +228,121 @@ async function loadFlights() {
             totalFlights++;
             totalDuration += data.duration || 0;
             totalDistance += data.distance || 0;
+
+
+
         });
 
+        const airlinesList = [...new Set(flightData.map(flight => flight.airline.trim().toLowerCase()))];
+        airlinesList.sort(); // Optional: sort after filtering uniques
+        totalAirlines = airlinesList.length;
+
+        const deptAirportLists = [...new Set(flightData.map(flight => flight.departure.trim().toLowerCase()))];
+        deptAirportLists.sort(); // Optional: sort after filtering uniques
+        const arrAirportLists = [...new Set(flightData.map(flight => flight.arrival.trim().toLowerCase()))];
+        arrAirportLists.sort(); // Optional: sort after filtering uniques
+        const allAirports = deptAirportLists.concat(arrAirportLists);
+
+        const uniqueAllAirports = [...new Set(allAirports)];
+        totalAirports = uniqueAllAirports.length;
+
+        const aircraftTypesList = [...new Set(flightData.map(flight => flight.aircraft.trim().toLowerCase()))];
+        aircraftTypesList.sort(); // Optional: sort after filtering uniques
+        totalAircraftTypes = aircraftTypesList.length;
+
         document.getElementById('total-flights').textContent = totalFlights;
+        document.getElementById('total-airlines').textContent = totalAirlines;
+        document.getElementById('total-aircraft-types').textContent = totalAircraftTypes;
+        document.getElementById('total-airports').textContent = totalAirports;
         document.getElementById('total-duration').textContent = totalDuration.toFixed(1);
         document.getElementById('total-distance').textContent = totalDistance.toFixed(1);
-        
+
     } catch (err) {
         console.error("Error loading flights:", err);
+    } finally {
+        document.getElementById("loader").style.display = "none"; // Hide loader
     }
 
-    console.log(flightData);
+  //  console.log(flightData);
     updateCharts(flightData);
 }
 
 async function deleteFlight(docId) {
-    if (confirm("Are you sure you want to delete this flight?")) {
-        try {
-            await db.collection("flights").doc(docId).delete();
-            alert("Flight deleted!");
-            loadFlights(); // Refresh table
-        } catch (err) {
-            console.error("Error deleting flight:", err);
+    const user = firebase.auth().currentUser;  // Get the current authenticated user
+
+    if (!user) {
+        Swal.fire({
+            icon: "error",
+            title: "Oops...",
+            text: "You must be signed in to delete a flight.",
+        });
+        return;
+    }
+
+    try {
+        const flightDoc = await db.collection("flights").doc(docId).get();
+
+        if (!flightDoc.exists) {
+            Swal.fire({
+                icon: "error",
+                title: "Internal Server Error...",
+                text: "Flight not found.",
+            });
+            return;
         }
+
+        // Check if the user is the owner of the flight
+        const flightData = flightDoc.data();
+        if (flightData.userId !== user.uid) {
+            Swal.fire({
+                icon: "error",
+                title: "Oops...",
+                text: "You can only delete your own flights.",
+            });
+            return;
+        }
+
+        // Proceed with deletion
+
+        Swal.fire({
+            title: "Are you sure?",
+            text: "You won't be able to revert this!",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#3085d6",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Yes, delete it!"
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+
+                await db.collection("flights").doc(docId).delete();
+                loadFlights(); // Refresh table
+
+                Swal.fire({
+                    title: "Deleted!",
+                    text: "Your flight has been deleted.",
+                    icon: "success"
+                });
+            }
+        });
+
+        // if (confirm("Are you sure you want to delete this flight?")) {
+        //     await db.collection("flights").doc(docId).delete();
+        //     alert("Flight deleted!");
+        //     loadFlights(); // Refresh table
+        // }
+
+    } catch (err) {
+        console.error("Error deleting flight:", err);
+        Swal.fire({
+            icon: "error",
+            title: "Internal Server Error...",
+            text: "There was an error while deleting the flight.",
+        });
     }
 }
 
 
-
-async function updateFlight(flightId, updatedData) {
-    if (confirm("Are you sure you want to edit this flight?")) {
-        try {
-            const flightRef = doc(db, "flights", flightId);
-            await updateDoc(flightRef, updatedData);
-            console.log("✈️ Flight updated successfully");
-          } catch (error) {
-            console.error("❌ Error updating flight:", error);
-          }
-    }
-}
 
 
 
@@ -220,101 +351,47 @@ let currentIndex = null; // Keep track of the index of the flight being edited
 // When editing a flight
 async function editFlight(docId) {
 
-    console.log(docId);
 
     try {
         // Get a reference to the document
         const flightRef = db.collection("flights").doc(docId);
-        
+
         // Fetch the document
         const docSnap = await flightRef.get();
-    
+
         if (docSnap.exists) {
-          console.log("Document data:", docSnap.data());
+            console.log("Document data:", docSnap.data());
 
-          const flight= docSnap.data();
-          console.log(flight);  
+            const flight = docSnap.data();
+            console.log(flight);
 
-          if (!flight) return alert("Flight data not found!");
+            if (!flight) return alert("Flight data not found!");
 
-          // Populate form with data
-          document.getElementById('date').value = flight.date;
-          departurePortSelect.value = flight.departure;
-          arrivalPortSelect.value = flight.arrival;
-          airlineSelect.value = flight.airline;
-          aircraftSelect.value = flight.aircraft;
-          document.getElementById('flightnumber').value = flight.flightnumber;
-          document.getElementById('tailnumber').value = flight.tailnumber || "";
-          document.getElementById('distance').value = flight.distance || "";
-          document.getElementById('duration').value = flight.duration || "";
-      
-          currentEditId = docId; // Set the ID we're editing
-      
-          document.getElementById("saveBtn").innerHTML = "Update Flight";
-          document.getElementById("saveBtn").style.backgroundColor = "#007bff";
+            // Populate form with data
+            document.getElementById('date').value = flight.date;
+            departurePortSelect.value = flight.departure;
+            arrivalPortSelect.value = flight.arrival;
+            airlineSelect.value = flight.airline;
+            aircraftSelect.value = flight.aircraft;
+            document.getElementById('flightnumber').value = flight.flightnumber;
+            document.getElementById('tailnumber').value = flight.tailnumber || "";
+            document.getElementById('distance').value = flight.distance || "";
+            document.getElementById('duration').value = flight.duration || "";
 
+            currentEditId = docId; // Set the ID we're editing
 
-
-          
+            document.getElementById("saveBtn").innerHTML = "Update Flight";
+            document.getElementById("saveBtn").style.backgroundColor = "#007bff";
 
         } else {
-          console.log("No such document!");
+            console.log("No such document!");
         }
-      } catch (error) {
+    } catch (error) {
         console.error("Error getting document:", error);
-      }
-
-
-
-   
+    }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function updateCharts(flightData) {
-    console.log("lets try to debug the chart loading");
 
     const airlines = [...new Set(flightData.map(flight => flight.airline))];
     const airports = [...new Set(flightData.map(flight => flight.departure))];
@@ -324,7 +401,7 @@ function updateCharts(flightData) {
     const airportCounts = airports.map(airport => flightData.filter(flight => flight.departure === airport).length);
     const aircraftCounts = aircraftTypes.map(aircraft => flightData.filter(flight => flight.aircraft === aircraft).length);
     const yearlyCounts = [...new Set(flightData.map(flight => new Date(flight.date).getFullYear()))];
-    
+
     const yearlyFlights = yearlyCounts.map(year => flightData.filter(flight => new Date(flight.date).getFullYear() === year).length);
 
     if (airlineChart) airlineChart.destroy();
@@ -417,3 +494,22 @@ function updateStatistics() {
     totalDistanceElement.textContent = totalDistance.toFixed(2);
 }
 
+document.getElementById("logoutBtn").addEventListener("click", () => {
+    auth.signOut()
+        .then(() => {
+            console.log("User signed out.");
+            return Swal.fire({
+                title: 'Signed Out!',
+                text: 'You have been signed out successfully',
+                icon: 'success',
+                confirmButtonText: 'OK'
+            });
+        })
+        .then(() => {
+            // Only redirect after the user clicks OK on the alert
+            window.location.href = "index.html";
+        })
+        .catch((error) => {
+            console.error("Logout error:", error);
+        });
+});
