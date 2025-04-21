@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign Up | FlightAtlas</title>
+  <link rel="stylesheet" href="signupstyles.css" />
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+</head>
+<body>
+  <div class="signup-wrapper">
+    <div class="left-side">
+    </div>
+    
+    <div class="right-side">
+      <div class="form-container">
+        <div class="logo">
+          <img src="assets/mainImage.png" alt="FlightAtlas Logo" />
+        </div>
+    
+        <header>
+          <h1>Create Account</h1>
+          <p>Join FlightAtlas and start your journey</p>
+        </header>
+    
+        <form id="signup-form" class="form-section">
+            <!-- New First Name and Last Name inputs -->
+            <input type="text" id="first-name" required placeholder="Enter your first name" />
+      
+            <input type="text" id="last-name" required placeholder="Enter your last name" />
+  
+            <!-- Existing email and password inputs -->
+            <input type="email" id="email" required placeholder="Enter your email" />
+      
+            <input type="password" id="password" required placeholder="Enter your password" />
+      
+            <button type="submit">Sign Up</button>
+            <p id="signup-error" class="error-message"></p>
+  
+            <button type="button" id="google-signin" class="google-btn">
+              Sign up with Google
+            </button>
+      
+            <div class="login-option">
+              <p>Already have an account? <a href="index.html">Log in here</a></p>
+            </div>
+          </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="signup.js"></script>
+</body>
+</html>

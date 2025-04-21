@@ -30,3 +30,32 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
     errorMessage.textContent = error.message;
   }
 });
+
+
+const googleButton = document.getElementById("google-signin");
+
+googleButton.addEventListener("click", async () => {
+  const provider = new firebase.auth.GoogleAuthProvider();
+
+  try {
+    const result = await auth.signInWithPopup(provider);
+    const user = result.user;
+
+    // Optional: If this is their first login, save user data to Firestore
+    if (result.additionalUserInfo.isNewUser) {
+      await db.collection("users").doc(user.uid).set({
+        name: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+        provider: "google",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    // Redirect to dashboard
+    window.location.href = "dashboard.html";
+  } catch (error) {
+    console.error("Google Sign-In failed:", error);
+    document.getElementById("login-error").textContent = error.message;
+  }
+});

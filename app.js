@@ -1,5 +1,41 @@
 let currentEditId = null; // Holds the Firestore doc ID during edit
 
+
+const modal = document.getElementById("flightModal");
+const openBtn = document.getElementById("openModalBtn");
+const closeBtn = document.getElementById("closeModalBtn");
+
+openBtn.onclick = () => modal.style.display = "block";
+
+
+closeBtn.onclick = () => {
+    modal.style.display = "none";
+    flightForm.reset();
+    document.getElementById("saveBtn").innerHTML = "Add Flight";
+    document.getElementById("saveBtn").style.backgroundColor = "#002f6e";
+    document.getElementById("modalLabel").innerHTML = "Add New Flight";
+    currentEditId = null;
+}
+
+
+window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; };
+
+const profileToggle = document.getElementById("profileToggle");
+const dropdownMenu = document.getElementById("dropdownMenu");
+
+profileToggle.onclick = (e) => {
+    dropdownMenu.style.display = dropdownMenu.style.display === "flex" ? "none" : "flex";
+};
+
+// Close dropdown when clicking outside
+window.addEventListener("click", (e) => {
+    if (!profileToggle.contains(e.target) && !dropdownMenu.contains(e.target)) {
+        dropdownMenu.style.display = "none";
+    }
+});
+
+
+
 let flightData = [];
 let distanceChart, airlineChart, airportChart, aircraftChart, yearlyFlightsChart;
 
@@ -21,15 +57,21 @@ const auth = firebase.auth();
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         const displayName = user.displayName || user.email.split("@")[0]; // fallback if no name set
+        const profilePic = user.photoURL || "assets/profileicon.png"; // fallback to default profile picture
+    
+        // Update the navbar with the user's name and profile picture
         document.getElementById("userDisplayName").textContent = displayName;
-
+        document.getElementById("profileicon").src = profilePic;
+    
+        // Optionally: Call a function to load flights or any other user-specific data
         loadFlights();
-
-    } else {
-        // User not logged in, redirect to login
-        //   window.location.href = "index.html";
-    }
+    
+      } else {
+        // User not logged in, you can redirect to the login page or show guest info
+        // window.location.href = "index.html";
+      }
 });
+
 
 loadDropdownData();
 
@@ -79,7 +121,7 @@ async function loadDropdownData() {
 
     } catch (err) {
         console.error("Error loading flights:", err);
-    } 
+    }
 
     try {
         const response2 = await fetch('airline_data.json');
@@ -130,10 +172,11 @@ flightForm.addEventListener('submit', async function (e) {
         return;
     }
 
+
     const updatedFlight = {
         date: document.getElementById('date').value,
-        departure: departurePortSelect.value,
-        arrival: arrivalPortSelect.value,
+        departure: (departurePortSelect.value).toLowerCase(),
+        arrival: (arrivalPortSelect.value).toLowerCase(),
         airline: airlineSelect.value,
         flightnumber: document.getElementById('flightnumber').value,
         aircraft: aircraftSelect.value,
@@ -160,40 +203,41 @@ flightForm.addEventListener('submit', async function (e) {
         // Add mode
         try {
             await db.collection("flights").add(updatedFlight);
-            document.querySelector("#flightTable tbody").innerHTML = "";
-
-            loadFlights();
             Swal.fire({
                 title: 'Success!',
                 text: 'Flight added successfully!',
                 icon: 'success',
                 confirmButtonText: 'OK'
             });
+            document.querySelector("#flightTable tbody").innerHTML = "";
+
+            loadFlights();
+
         } catch (error) {
             console.error("Error adding flight:", error);
         }
     }
 
+    modal.style.display = "none";
+
     currentEditId = null; // Reset
     flightForm.reset();
     document.getElementById("saveBtn").innerHTML = "Add Flight";
-    document.getElementById("saveBtn").style.backgroundColor = "#28a745";
+    document.getElementById("saveBtn").style.backgroundColor = "#002f6e";
+    document.getElementById("modalLabel").innerHTML = "Add New Flight";
+
     loadFlights();
 });
 
-
 async function loadFlights() {
     document.getElementById("loader").style.display = "flex"; // Show loader
-
 
     const tableBody = document.querySelector("#flight-table tbody");
     tableBody.innerHTML = ""; // Clear table
 
     const user = firebase.auth().currentUser;
-    //  console.log(user);
 
     try {
-        // const snapshot = await db.collection("flights").orderBy("date").get();
         const snapshot = await db.collection("flights")
             .where("userId", "==", user.uid)  // Fetch only flights that belong to the current user
             .orderBy("date")
@@ -211,16 +255,13 @@ async function loadFlights() {
 
         snapshot.forEach(doc => {
             const data = doc.data();
-
-
             flightData.push({ ...data, id: doc.id });
-
 
             const row = document.createElement("tr");
             row.innerHTML = `
                 <td>${data.date}</td>
-                <td>${data.departure}</td>
-                <td>${data.arrival}</td>
+                <td>${toTitleCase(data.departure)}</td>
+                <td>${toTitleCase(data.arrival)}</td>
                 <td>${data.airline}</td>
                 <td>${data.flightnumber}</td>
                 <td>${data.aircraft}</td>
@@ -228,54 +269,107 @@ async function loadFlights() {
                 <td>${data.distance || 0}</td>
                 <td>${data.duration || 0}</td>
                 <td>
-                <button class="remove-btn" onclick="deleteFlight('${doc.id}')">Delete</button>
-                <button class="edit-btn"  onclick="editFlight('${doc.id}')">Edit</button>
+                    <button class="remove-btn" onclick="deleteFlight('${doc.id}')">Delete</button>
+                    <button class="edit-btn" onclick="editFlight('${doc.id}')">Edit</button>
                 </td>
-
             `;
             tableBody.appendChild(row);
 
             totalFlights++;
             totalDuration += data.duration || 0;
             totalDistance += data.distance || 0;
-
-
-
         });
 
-        const airlinesList = [...new Set(flightData.map(flight => flight.airline.trim().toLowerCase()))];
-        airlinesList.sort(); // Optional: sort after filtering uniques
+        // Other unique stats calculation logic
+        var airlinesList = [...new Set(flightData.map(flight => flight.airline.trim().toLowerCase()))];
         totalAirlines = airlinesList.length;
 
-        const aircraftTypesList = [...new Set(flightData.map(flight => flight.aircraft.trim().toLowerCase()))];
-        aircraftTypesList.sort(); // Optional: sort after filtering uniques
+        var aircraftTypesList = [...new Set(flightData.map(flight => flight.aircraft.trim().toLowerCase()))];
         totalAircraftTypes = aircraftTypesList.length;
 
         const deptAirportLists = [...new Set(flightData.map(flight => flight.departure.trim().toLowerCase()))];
-        deptAirportLists.sort(); // Optional: sort after filtering uniques
         const arrAirportLists = [...new Set(flightData.map(flight => flight.arrival.trim().toLowerCase()))];
-        arrAirportLists.sort(); // Optional: sort after filtering uniques
-        const allAirports = deptAirportLists.concat(arrAirportLists);
-
-        const uniqueAllAirports = [...new Set(allAirports)];
+        var uniqueAllAirports = [...new Set([...deptAirportLists, ...arrAirportLists])];
         totalAirports = uniqueAllAirports.length;
 
-        // console.log(uniqueAllAirports);
+        var countryList = await getCountryByAirportName(uniqueAllAirports);
+        countryList = [...new Set(countryList)];
+        totalCountries = countryList.length;
 
-        var countryList= [];
-
-        countryList = await getCountryByAirportName(uniqueAllAirports);
-        totalCountries=countryList.length;
-
-        console.log(countryList);
-
+        // Update the stats display
         document.getElementById('total-flights').textContent = totalFlights;
         document.getElementById('total-airlines').textContent = totalAirlines;
         document.getElementById('total-aircraft-types').textContent = totalAircraftTypes;
         document.getElementById('total-airports').textContent = totalAirports;
         document.getElementById('total-countries').textContent = totalCountries;
-        document.getElementById('total-duration').textContent = totalDuration.toFixed(1);
-        document.getElementById('total-distance').textContent = totalDistance.toFixed(1);
+        document.getElementById('total-duration').textContent = Math.ceil(totalDuration.toFixed(1) / 60);
+        document.getElementById('total-distance').textContent = Math.ceil(totalDistance.toFixed(1));
+
+
+        countryList = countryList.map(country =>
+            country
+                .toLowerCase()
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ')
+        ).sort();
+
+
+        airlinesList = airlinesList.map(iteminarray =>
+            iteminarray
+                .toLowerCase()
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ')
+        ).sort();
+
+
+        uniqueAllAirports = uniqueAllAirports.map(iteminarray =>
+            iteminarray
+                .toLowerCase()
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ')
+        ).sort();
+
+
+        aircraftTypesList = aircraftTypesList.map(iteminarray =>
+            iteminarray
+                .toLowerCase()
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ')
+        ).sort();
+
+
+        // Add click listeners to show the detailed stats in the modal
+        document.getElementById('total-flights-tile').addEventListener('click', function () {
+            showStatDetails("Total Flights", `Total Flights: ${totalFlights}`);
+        });
+
+        document.getElementById('total-airlines-tile').addEventListener('click', function () {
+            showStatDetails("Total Airlines", `Total Airlines: ${totalAirlines}`, airlinesList);
+        });
+
+        document.getElementById('total-countries-tile').addEventListener('click', function () {
+            showStatDetails("Total Countries", `Total Countries: ${totalCountries}`, countryList);
+        });
+
+        document.getElementById('total-airports-tile').addEventListener('click', function () {
+            showStatDetails("Total Airports", `Total Airports: ${totalAirports}`, uniqueAllAirports);
+        });
+
+        document.getElementById('total-aircraft-types-tile').addEventListener('click', function () {
+            showStatDetails("Total Aircraft Types", `Total Aircraft Types: ${totalAircraftTypes}`, aircraftTypesList);
+        });
+
+        document.getElementById('total-duration-tile').addEventListener('click', function () {
+            showStatDetails("Total Duration", `Total Duration: ${Math.ceil(totalDuration.toFixed(1) / 60)} hours`);
+        });
+
+        document.getElementById('total-distance-tile').addEventListener('click', function () {
+            showStatDetails("Total Distance", `Total Distance: ${Math.ceil(totalDistance.toFixed(1))} km`);
+        });
 
     } catch (err) {
         console.error("Error loading flights:", err);
@@ -283,29 +377,52 @@ async function loadFlights() {
         document.getElementById("loader").style.display = "none"; // Hide loader
     }
 
-    //  console.log(flightData);
     updateCharts(flightData);
+    initializeDataTable();
 }
+
+
+
+
+function showStatDetails(title, description, countryList = null) {
+    document.getElementById('modal-stat-title').textContent = title;
+    document.getElementById('modal-stat-description').textContent = description;
+
+    if (countryList) {
+        // Show the country list if available
+        const countryListHtml = countryList.map(country => `<li>${country}</li>`).join('');
+        document.getElementById('modal-stat-description').innerHTML += `
+            <ul>${countryListHtml}</ul>
+        `;
+    }
+
+    document.getElementById('stat-modal').style.display = 'block';
+}
+
+// Close the modal when the close button is clicked
+document.getElementById('close-modal').addEventListener('click', function () {
+    document.getElementById('stat-modal').style.display = 'none';
+});
 
 
 async function getCountryByAirportName(uniqueAllAirports) {
     const countries = [];
-  
+
     for (const name of uniqueAllAirports) {
-      const snapshot = await db.collection("airports")
-        .where("name", "==", name)
-        .get();
-  
-      if (!snapshot.empty) {
-        const data = snapshot.docs[0].data();
-        countries.push(data.country);
-      } else {
-        console.warn(`No match found for airport: ${name}`);
-      }
+        const snapshot = await db.collection("airports")
+            .where("name", "==", name)
+            .get();
+
+        if (!snapshot.empty) {
+            const data = snapshot.docs[0].data();
+            countries.push(data.country);
+        } else {
+            console.warn(`No match found for airport: ${name}`);
+        }
     }
-  
+
     return countries;
-  }
+}
 
 
 async function deleteFlight(docId) {
@@ -392,6 +509,12 @@ let currentIndex = null; // Keep track of the index of the flight being edited
 // When editing a flight
 async function editFlight(docId) {
 
+    modal.style.display = "block";
+
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth' // Optional: adds smooth scrolling animation
+    });
 
     try {
         // Get a reference to the document
@@ -422,7 +545,9 @@ async function editFlight(docId) {
             currentEditId = docId; // Set the ID we're editing
 
             document.getElementById("saveBtn").innerHTML = "Update Flight";
-            document.getElementById("saveBtn").style.backgroundColor = "#007bff";
+            document.getElementById("saveBtn").style.backgroundColor = "#4075a2";
+
+            document.getElementById("modalLabel").innerHTML = "Edit Flight";
 
         } else {
             console.log("No such document!");
@@ -433,97 +558,161 @@ async function editFlight(docId) {
 }
 
 function updateCharts(flightData) {
+    Chart.defaults.font.family = 'Segoe UI, sans-serif';
 
-    const airlines = [...new Set(flightData.map(flight => flight.airline))];
-    const airports = [...new Set(flightData.map(flight => flight.departure))];
-    const aircraftTypes = [...new Set(flightData.map(flight => flight.aircraft))];
+    const airlines = [...new Set(flightData.map(f => f.airline))];
+    const airports = [...new Set(flightData.map(f => f.departure))];
+    const aircraftTypes = [...new Set(flightData.map(f => f.aircraft))];
+    const years = [...new Set(flightData.map(f => new Date(f.date).getFullYear()))].sort();
 
-    const airlineCounts = airlines.map(airline => flightData.filter(flight => flight.airline === airline).length);
-    const airportCounts = airports.map(airport => flightData.filter(flight => flight.departure === airport).length);
-    const aircraftCounts = aircraftTypes.map(aircraft => flightData.filter(flight => flight.aircraft === aircraft).length);
-    const yearlyCounts = [...new Set(flightData.map(flight => new Date(flight.date).getFullYear()))];
+    const airlineCounts = airlines.map(a => flightData.filter(f => f.airline === a).length);
+    const airportCounts = airports.map(a => flightData.filter(f => f.departure === a).length);
+    const aircraftCounts = aircraftTypes.map(a => flightData.filter(f => f.aircraft === a).length);
+    const yearlyFlights = years.map(y => flightData.filter(f => new Date(f.date).getFullYear() === y).length);
 
-    const yearlyFlights = yearlyCounts.map(year => flightData.filter(flight => new Date(flight.date).getFullYear() === year).length);
+    const destroyChart = (chart) => { if (chart) chart.destroy(); };
 
-    if (airlineChart) airlineChart.destroy();
+    // Bar Chart for Airlines
+    destroyChart(airlineChart);
     airlineChart = new Chart(airlineChartCanvas, {
-        type: 'pie',
+        type: 'bar',
         data: {
             labels: airlines,
             datasets: [{
-                label: 'Airline Distribution',
+                label: 'Flights per Airline',
                 data: airlineCounts,
-                backgroundColor: ['#FF5733', '#33FF57', '#3357FF', '#F4A261', '#2D3142']
+                backgroundColor: '#002f6e' // Primary dark blue color
             }]
         },
         options: {
             responsive: true,
             plugins: {
-                legend: {
-                    position: 'top',
-                },
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
-                        label: (tooltipItem) => `${tooltipItem.label}: ${tooltipItem.raw} flights`
+                        label: ctx => `${ctx.dataset.label}: ${ctx.raw}`
                     }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Flights' }
+                },
+                x: {
+                    title: { display: true, text: 'Airlines' }
                 }
             }
         }
     });
 
-    if (airportChart) airportChart.destroy();
+    // Horizontal Bar for Airports
+    destroyChart(airportChart);
     airportChart = new Chart(airportChartCanvas, {
-        type: 'pie',
+        type: 'bar',
         data: {
             labels: airports,
             datasets: [{
-                label: 'Airport Distribution',
+                label: 'Flights per Airport',
                 data: airportCounts,
-                backgroundColor: ['#FF8C00', '#FF6347', '#4CAF50', '#8A2BE2', '#20B2AA']
+                backgroundColor: '#040439' // Secondary dark purple color
             }]
         },
         options: {
+            indexAxis: 'y',
             responsive: true,
             plugins: {
-                legend: {
-                    position: 'top',
-                },
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
-                        label: (tooltipItem) => `${tooltipItem.label}: ${tooltipItem.raw} flights`
+                        label: ctx => `${ctx.dataset.label}: ${ctx.raw}`
                     }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Flights' }
+                },
+                y: {
+                    title: { display: true, text: 'Airports' }
                 }
             }
         }
     });
 
-    if (aircraftChart) aircraftChart.destroy();
+    // Horizontal Bar for Aircraft Types
+    destroyChart(aircraftChart);
     aircraftChart = new Chart(aircraftChartCanvas, {
-        type: 'pie',
+        type: 'bar',
         data: {
             labels: aircraftTypes,
             datasets: [{
-                label: 'Aircraft Type Distribution',
+                label: 'Flights per Aircraft',
                 data: aircraftCounts,
-                backgroundColor: ['#FFC300', '#FF5733', '#C70039', '#900C3F', '#581845']
+                backgroundColor: '#849cbc' // Accent light blue color
             }]
         },
         options: {
+            indexAxis: 'y',
             responsive: true,
             plugins: {
-                legend: {
-                    position: 'top',
-                },
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
-                        label: (tooltipItem) => `${tooltipItem.label}: ${tooltipItem.raw} flights`
+                        label: ctx => `${ctx.dataset.label}: ${ctx.raw}`
                     }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Flights' }
+                },
+                y: {
+                    title: { display: true, text: 'Aircrafts' }
                 }
             }
         }
     });
 
+    // Line Chart for Yearly Flights
+    destroyChart(yearlyFlightsChart);
+    yearlyFlightsChart = new Chart(yearlyFlightsChartCanvas, {
+        type: 'line',
+        data: {
+            labels: years,
+            datasets: [{
+                label: 'Flights per Year',
+                data: yearlyFlights,
+                fill: false,
+                borderColor: '#002f6e', // Primary dark blue color for the line
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: true },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.dataset.label}: ${ctx.raw}`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Flights' }
+                },
+                x: {
+                    title: { display: true, text: 'Year' }
+                }
+            }
+        }
+    });
 }
+
 
 function updateStatistics() {
     const totalFlights = flightData.length;
@@ -558,4 +747,198 @@ document.getElementById("logoutBtn").addEventListener("click", () => {
 window.addEventListener("load", () => {
     // Hide loader only after everything is loaded
     document.getElementById("loader").style.display = "none";
+});
+
+function initializeDataTable() {
+    // Destroy if already initialized
+    if ($.fn.dataTable.isDataTable('#flight-table')) {
+        $('#flight-table').DataTable().destroy();
+    }
+
+    // Initialize with options
+    $('#flight-table').DataTable({
+        paging: true,
+        pageLength: 10,
+        ordering: true,
+        order: [[0, 'desc']], // default sort by date descending
+    });
+}
+
+function toTitleCase(str) {
+    return str
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+}
+
+// // === Popup Controls ===
+// const openPopupBtn = document.getElementById("openAircraftPopup");
+// const closePopupBtn = document.getElementById("closeAircraftPopup");
+// const popup = document.getElementById("aircraftPopup");
+
+// openPopupBtn.addEventListener("click", () => popup.style.display = "flex");
+// closePopupBtn.addEventListener("click", () => popup.style.display = "none");
+// window.addEventListener("click", (e) => {
+//     if (e.target === popup) popup.style.display = "none";
+// });
+
+// // === Fetch Aircraft Info ===
+// const lookupBtn = document.getElementById("lookupAircraftBtn");
+// const tailInput = document.getElementById("tailNumberInput");
+// const resultBox = document.getElementById("aircraftResult");
+
+// lookupBtn.addEventListener("click", async () => {
+//   const tailNumber = tailInput.value.trim().toUpperCase();
+//   if (!tailNumber) {
+//     resultBox.innerHTML = "<p>Please enter a valid tail number.</p>";
+//     return;
+//   }
+
+//   resultBox.innerHTML = "<p>Fetching aircraft data...</p>";
+
+//   try {
+//     const response = await fetch(`https://aerodatabox.p.rapidapi.com/aircrafts/reg/${tailNumber}`, {
+//       method: 'GET',
+//       headers: {
+//         'X-RapidAPI-Key': '27cab1653emsh0744570b575fc80p110c9cjsn8d2ba5c68db3',
+//         'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com'
+//       }
+//     });
+
+//     if (!response.ok) throw new Error("Failed to fetch data");
+//     const data = await response.json();
+
+//     if (!data || Object.keys(data).length === 0) {
+//       resultBox.innerHTML = "<p>No aircraft found for this tail number.</p>";
+//       return;
+//     }
+
+//     resultBox.innerHTML = `
+//       <strong>Model:</strong> ${data.model || 'N/A'}<br>
+//       <strong>Manufacturer:</strong> ${data.manufacturer || 'N/A'}<br>
+//       <strong>First Flight:</strong> ${data.firstFlightDate || 'N/A'}<br>
+//       <strong>Age:</strong> ${data.ageYears ? data.ageYears + " years" : 'N/A'}<br>
+//       <strong>Owner:</strong> ${data.owner || 'N/A'}
+//     `;
+//   } catch (error) {
+//     console.error(error);
+//     resultBox.innerHTML = "<p>Error retrieving data. Try again later.</p>";
+//   }
+// });
+
+
+
+
+document.getElementById("openAircraftModal").addEventListener("click", () => {
+    document.getElementById("aircraftModal").style.display = "block";
   });
+  
+  document.getElementById("closeAircraftModal").addEventListener("click", () => {
+    document.getElementById("aircraftModal").style.display = "none";
+    clearAircraftLookup();
+  });
+  
+  document.getElementById("clearTailBtn").addEventListener("click", () => {
+    clearAircraftLookup();
+  });
+  
+  function clearAircraftLookup() {
+    document.getElementById("tailInput").value = "";
+    document.getElementById("aircraftResult").innerHTML = "";
+  }
+  
+//   document.getElementById("searchTailBtn").addEventListener("click", async () => {
+//     const tail = document.getElementById("tailInput").value.trim().toUpperCase();
+//     const resultBox = document.getElementById("aircraftResult");
+//     resultBox.innerHTML = "🔄 Searching...";
+  
+//     if (!tail) {
+//       resultBox.innerHTML = "❗ Please enter a tail number.";
+//       return;
+//     }
+  
+//     try {
+//         const response = await fetch(`https://aerodatabox.p.rapidapi.com/aircrafts/reg/${tail}`, {
+//             method: 'GET',
+//         headers: {
+//           'X-RapidAPI-Key': '27cab1653emsh0744570b575fc80p110c9cjsn8d2ba5c68db3',
+//           'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com'
+//         }
+//       });
+  
+//       if (!response.ok) throw new Error("Aircraft not found.");
+  
+//       const data = await response.json();
+//       resultBox.innerHTML = `
+//         <strong>Registration:</strong> ${data.registration}<br>
+//         <strong>Model:</strong> ${data.model}<br>
+//         <strong>Manufacturer:</strong> ${data.manufacturer}<br>
+//         <strong>ICAO Type:</strong> ${data.icaoTypeCode}<br>
+//         <strong>MSN:</strong> ${data.serialNumber}<br>
+//         <strong>Line Number:</strong> ${data.lineNumber || 'N/A'}<br>
+//         <strong>Age:</strong> ${data.ageYears} years
+//       `;
+//     } catch (error) {
+//       resultBox.innerHTML = `❌ Error: ${error.message}`;
+//     }
+//   });
+
+
+document.getElementById("searchTailBtn").addEventListener("click", async () => {
+    const tailNumber = tailInput.value.trim().toUpperCase();
+   const resultBox = document.getElementById("aircraftResult");
+
+    if (!tailNumber) {
+      resultBox.innerHTML = "<p>Please enter a valid tail number.</p>";
+      return;
+    }
+  
+    resultBox.innerHTML = "<p>Fetching aircraft data...</p>";
+  
+    try {
+      const response = await fetch(`https://aerodatabox.p.rapidapi.com/aircrafts/reg/${tailNumber}`, {
+        method: 'GET',
+        headers: {
+          'X-RapidAPI-Key': '27cab1653emsh0744570b575fc80p110c9cjsn8d2ba5c68db3',
+          'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com'
+        }
+      });
+  
+      if (!response.ok) throw new Error("Failed to fetch data");
+      const data = await response.json();
+  
+      // Try fetching the aircraft image
+      let imageHTML = '';
+      try {
+        const imageResponse = await fetch(`https://aerodatabox.p.rapidapi.com/aircrafts/reg/${tailNumber}/image/beta`, {
+          method: 'GET',
+          headers: {
+            'X-RapidAPI-Key': '27cab1653emsh0744570b575fc80p110c9cjsn8d2ba5c68db3',
+            'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com'
+          }
+        });
+  
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          if (imageData && imageData.url) {
+            imageHTML = `<div><img src="${imageData.url}" alt="Aircraft Image" style="max-width:100%; margin-top: 10px; border-radius: 8px;" /></div>`;
+          }
+        }
+      } catch (imgErr) {
+        console.warn("Could not fetch aircraft image", imgErr);
+      }
+  
+      resultBox.innerHTML = `
+        <strong>Model:</strong> ${data.model || 'N/A'}<br>
+        <strong>Manufacturer:</strong> ${data.manufacturer || 'N/A'}<br>
+        <strong>First Flight:</strong> ${data.firstFlightDate || 'N/A'}<br>
+        <strong>Age:</strong> ${data.ageYears ? data.ageYears + " years" : 'N/A'}<br>
+        <strong>Owner:</strong> ${data.owner || 'N/A'}
+        ${imageHTML}
+      `;
+    } catch (error) {
+      console.error(error);
+      resultBox.innerHTML = "<p>Error retrieving data. Try again later.</p>";
+    }
+  });
+  

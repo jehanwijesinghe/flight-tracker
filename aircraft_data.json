@@ -26,6 +26,7 @@
     { "id": 23, "name": "Boeing 737", "model": "737-500" },
     { "id": 24, "name": "Boeing 737", "model": "737-700" },
     { "id": 25, "name": "Boeing 737", "model": "737-800" },
+    { "id": 57, "name": "Boeing 737", "model": "737-900" },
     { "id": 26, "name": "Boeing 737", "model": "737 MAX 7" },
     { "id": 27, "name": "Boeing 737", "model": "737 MAX 8" },
     { "id": 28, "name": "Boeing 737", "model": "737 MAX 9" },

@@ -1,0 +1,169 @@
+/* General body styling */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    height: 100vh;
+}
+
+/* Wrapper for both sides */
+.signup-wrapper {
+    display: flex;
+    width: 100%;
+}
+
+/* Left side: Background image */
+.left-side {
+    flex: 1;
+    background-color: #002f6e; /* Fallback */
+    background-image: url('assets/signupback.jpg'); /* Update your path if needed */
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    height: 100%;
+}
+
+/* Right side: Form */
+.right-side {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #ffffff;
+    padding: 40px;
+    box-sizing: border-box;
+}
+
+/* Container to center everything */
+.form-container {
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+/* Logo styling */
+.logo {
+    margin-bottom: 20px;
+}
+
+.logo img {
+    width: 120px;
+    height: auto;
+}
+
+/* Header styling */
+header {
+    margin-bottom: 20px;
+}
+
+header h1 {
+    font-size: 24px;
+    color: #002f6e;
+    margin: 0;
+}
+
+header p {
+    font-size: 14px;
+    color: #849cbc;
+}
+
+/* Form styling */
+.form-section {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+label {
+    font-size: 14px;
+    margin-bottom: 5px;
+    color: #002f6e;
+}
+
+/* First and last name inputs */
+input[type="text"],
+input[type="email"],
+input[type="password"] {
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    border: 1px solid #849cbc;
+    font-size: 16px;
+    color: #002f6e;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus {
+    border-color: #002f6e;
+    outline: none;
+}
+
+/* Primary Sign Up Button */
+button[type="submit"] {
+    background-color: #002f6e;
+    color: #ffffff;
+    padding: 12px;
+    border-radius: 5px;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button[type="submit"]:hover {
+    background-color: #040439;
+}
+
+/* Google Button */
+.google-btn {
+    background-color: #ffffff;
+    color: #002f6e;
+    border: 1px solid #849cbc;
+    padding: 12px 15px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 20px;
+    border-radius: 6px;
+    transition: background 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.google-btn:hover {
+    background-color: #f1f1f1;
+}
+
+/* Error message styling */
+.error-message {
+    color: #d9534f;
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+/* Log-in option link */
+.login-option {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.login-option p {
+    font-size: 14px;
+    color: #002f6e;
+}
+
+.login-option a {
+    color: #040439;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.login-option a:hover {
+    text-decoration: underline;
+}
